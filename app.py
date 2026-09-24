@@ -56,7 +56,7 @@ if "eficiencia" not in st.session_state:
 
 
 # ============================================================
-# 2. CARREGAR DADOS (SUPORTE COMPLETO A ZIP E FALLBACK)
+# 2. CARREGAR DADOS (SUPORTE COMPLETO A PYOGRIO / GDAL / FIONA)
 # ============================================================
 
 
@@ -66,11 +66,17 @@ def carregar_dados():
     csv_path = os.path.join("data", "parametros_louos.csv")
 
     if os.path.exists(zip_path):
-        shapefile_path = f"zip://{zip_path}"
+        # Compatibilidade com pyogrio (GDAL Virtual File Systems)
+        try:
+            gdf = gpd.read_file(f"/vsizip/{zip_path}")
+        except Exception:
+            # Fallback para Fiona caso a sintaxe vsizip não responda
+            gdf = gpd.read_file(f"zip://{zip_path}", engine="fiona")
     else:
+        # Fallback para arquivo descomprimido local
         shapefile_path = os.path.join("data", "Zoneamento", "anexos_II_III.shp")
+        gdf = gpd.read_file(shapefile_path)
 
-    gdf = gpd.read_file(shapefile_path)
     df_louos = pd.read_csv(csv_path)
 
     return gdf, df_louos
@@ -444,7 +450,7 @@ if st.session_state.consultado:
                         f"💡 **Potencial Construtivo Adicional:** `{outorga_potencial_m2:.1f} m²`"
                     )
 
-                    with st.expander("🔎 Como este resultado foi calculado?"):
+                    with st.expander("🔎 Como este resultado foi calculated?"):
                         st.write(f"""
                         - **Projeção no Solo:** {area:.2f} m² (Área do lote) × {info['taxa_ocupacao']*100}% (T.O.) = **{area_projecao:.2f} m²**
                         - **Área Construtiva Básica:** {area:.2f} m² × {info['ca_basico']} (C.A. Básico) = **{area_const_basica:.2f} m²**
