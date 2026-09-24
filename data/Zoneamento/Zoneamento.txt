@@ -1,0 +1,48 @@
+Nesta pasta, estão contidas as seguintes camadas:
+
+1-Zoneamento atualizado conforme última versão da LC 470/2017, atualizada pela LC 708/2025.
+Classe de feição vetorial do tipo poligonal que categoriza as setores de zoneamento** 
+e as macrozonas** do Município de Joinville, conforme estabelecido pela Lei Complementar
+470/2017 de Uso e Ocupação do Solo.
+**Incluídos arquivos do tipo layer (.lyrx) de zoneamento (anexoIII_LOT_setores_simgeo) e de macrozoneamento (anexoII_LOT_macrozoneamento),
+que formatam a simbologia dos setores e macrozonas conforme anexos da Lei Complementar 470/2017.
+
+2-Faixas Rodoviárias
+Classe de feição vetorial do tipo linear que identifica as faixas rodoviárias do Município de Joinville, conforme estabelecido pela Lei Complementar
+470/2017 de Uso e Ocupação do Solo. Último regramento pela Lei Complementar n. 684/2024.
+
+3-Faixas Viárias
+Classe de feição vetorial do tipo linear que identifica as faixas viárias do Município de Joinville, conforme estabelecido pela Lei Complementar 470/2017 de Uso e Ocupação do Solo. Último regramento pela Lei Complementar n. 498/2018.
+
+4-Área de influências das faixas viárias
+Classe de feição vetorial do tipo poligonal que identifica as áreas de influência das faixas viárias do Município de Joinville, conforme estabelecido pela Lei Complementar 470/2017 de Uso e Ocupação do Solo. Último regramento pela Lei Complementar n. 498/2018.
+
+5-SE Centralidades Urbanas
+Classe de feição vetorial do tipo poligonal que categoriza o setor especial das centralidades urbanas do Município de Joinville, conforme estabelecido pela Lei Complementar 470/2017 de Uso e Ocupação do Solo.
+
+6-Zona de Proteção Aeroportuária
+Classe de feição vetorial do tipo linear que identifica a zona de proteção aeroportuária do Município de Joinville, conforme estabelecido pela Lei Complementar 470/2017 de Uso e Ocupação do Solo.
+
+7-Operação Urbana Consorciada "Cidade das Águas"
+Classe de feição vetorial do tipo poligonal que delimita a "Cidade das Águas", OUC regida
+pela LC 660/2023.
+
+8-Operação Urbana Consorciada "Quadra Cultural"
+Classe de feição vetorial do tipo poligonal que delimita a "Quadra Cultural", OUC regida
+pela LC 662/2023.
+
+9-Operação Urbana Consorciada "Integração Jardim Paraíso"
+Classe de feição vetorial do tipo poligonal que delimita a "Integração Jardim Paraíso", OUC regida
+pela LC 690/2024.
+
+10-Zonas Especiais de Interesse Social "ZEIS"
+Classe de feição vetorial do tipo poligonal que delimita as áreas das ZEIS instituídas legalmente no município.Último regramento pelo Decreto n. 70.063/2025.
+
+Segue abaixo modelo de citação da fonte:
+
+Prefeitura Municipal de Joinville. 2010.
+Base Cartográfica do Município de Joinville.
+Escala 1:10.000 / 1:5.000.
+Executado Por: Aeroimagem Engenharia e Aerolevantamento, ano de 2010.
+
+Atualização: 08/05/2026.

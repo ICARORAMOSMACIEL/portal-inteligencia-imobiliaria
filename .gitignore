@@ -1,0 +1,19 @@
+# Ambientes virtuais
+venv/
+.venv/
+env/
+
+# Cache do Python
+__pycache__/
+*.pyc
+
+# Cache do Streamlit
+.streamlit/
+
+# Arquivos de IDEs
+.vscode/
+.idea/
+
+# Sistema Operacional
+.DS_Store
+Thumbs.db
