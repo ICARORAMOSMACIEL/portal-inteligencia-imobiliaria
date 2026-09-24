@@ -1,4 +1,5 @@
 import io
+import os 
 import folium
 import geopandas as gpd
 import pandas as pd
@@ -10,6 +11,26 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from shapely.geometry import Point
 from streamlit_folium import st_folium
+
+
+@st.cache_data
+def carregar_dados():
+    # Opção 1: Leitura direta do arquivo ZIP (Recomendado para Streamlit Cloud)
+    zip_path = os.path.join("data", "shp_zoneamento.zip")
+    csv_path = os.path.join("data", "parametros_louos.csv")
+
+    if os.path.exists(zip_path):
+        shapefile_path = f"zip://{zip_path}"
+    else:
+        # Opção 2: Fallback para a pasta descompactada
+        shapefile_path = os.path.join("data", "Zoneamento", "anexos_II_III.shp")
+
+    # Lê o Shapefile e o CSV
+    gdf = gpd.read_file(shapefile_path)
+    df_louos = pd.read_csv(csv_path)
+
+    return gdf, df_louos
+
 
 # ============================================================
 # 1. CONFIGURAÇÃO DA PÁGINA & SESSION STATE
