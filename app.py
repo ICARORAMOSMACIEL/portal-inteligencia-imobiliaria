@@ -1,5 +1,7 @@
 import io
 import os
+import tempfile
+import zipfile
 import folium
 import geopandas as gpd
 import pandas as pd
@@ -56,7 +58,7 @@ if "eficiencia" not in st.session_state:
 
 
 # ============================================================
-# 2. CARREGAR DADOS (SUPORTE COMPLETO A PYOGRIO / GDAL / FIONA)
+# 2. CARREGAR DADOS (EXTRAÇÃO SEURA DE ZIP EM PASTA TEMPORÁRIA)
 # ============================================================
 
 
@@ -66,14 +68,25 @@ def carregar_dados():
     csv_path = os.path.join("data", "parametros_louos.csv")
 
     if os.path.exists(zip_path):
-        # Compatibilidade com pyogrio (GDAL Virtual File Systems)
-        try:
-            gdf = gpd.read_file(f"/vsizip/{zip_path}")
-        except Exception:
-            # Fallback para Fiona caso a sintaxe vsizip não responda
-            gdf = gpd.read_file(f"zip://{zip_path}", engine="fiona")
+        # Descomprime o ficheiro ZIP numa pasta temporária para leitura direta do GeoPandas
+        temp_dir = tempfile.mkdtemp()
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall(temp_dir)
+
+        # Procura o ficheiro .shp dentro dos ficheiros extraídos
+        shp_file = None
+        for root, dirs, files in os.walk(temp_dir):
+            for file in files:
+                if file.endswith(".shp"):
+                    shp_file = os.path.join(root, file)
+                    break
+
+        if shp_file:
+            gdf = gpd.read_file(shp_file)
+        else:
+            raise FileNotFoundError("Nenhum ficheiro .shp foi encontrado dentro do zip_path.")
     else:
-        # Fallback para arquivo descomprimido local
+        # Fallback para caminho local descompactado
         shapefile_path = os.path.join("data", "Zoneamento", "anexos_II_III.shp")
         gdf = gpd.read_file(shapefile_path)
 
@@ -450,7 +463,7 @@ if st.session_state.consultado:
                         f"💡 **Potencial Construtivo Adicional:** `{outorga_potencial_m2:.1f} m²`"
                     )
 
-                    with st.expander("🔎 Como este resultado foi calculated?"):
+                    with st.expander("🔎 Como este resultado foi calculado?"):
                         st.write(f"""
                         - **Projeção no Solo:** {area:.2f} m² (Área do lote) × {info['taxa_ocupacao']*100}% (T.O.) = **{area_projecao:.2f} m²**
                         - **Área Construtiva Básica:** {area:.2f} m² × {info['ca_basico']} (C.A. Básico) = **{area_const_basica:.2f} m²**
