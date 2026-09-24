@@ -1,5 +1,5 @@
 import io
-import os 
+import os
 import folium
 import geopandas as gpd
 import pandas as pd
@@ -11,26 +11,6 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from shapely.geometry import Point
 from streamlit_folium import st_folium
-
-
-@st.cache_data
-def carregar_dados():
-    # Opção 1: Leitura direta do arquivo ZIP (Recomendado para Streamlit Cloud)
-    zip_path = os.path.join("data", "shp_zoneamento.zip")
-    csv_path = os.path.join("data", "parametros_louos.csv")
-
-    if os.path.exists(zip_path):
-        shapefile_path = f"zip://{zip_path}"
-    else:
-        # Opção 2: Fallback para a pasta descompactada
-        shapefile_path = os.path.join("data", "Zoneamento", "anexos_II_III.shp")
-
-    # Lê o Shapefile e o CSV
-    gdf = gpd.read_file(shapefile_path)
-    df_louos = pd.read_csv(csv_path)
-
-    return gdf, df_louos
-
 
 # ============================================================
 # 1. CONFIGURAÇÃO DA PÁGINA & SESSION STATE
@@ -76,19 +56,22 @@ if "eficiencia" not in st.session_state:
 
 
 # ============================================================
-# 2. CARREGAR DADOS
+# 2. CARREGAR DADOS (SUPORTE COMPLETO A ZIP E FALLBACK)
 # ============================================================
 
 
 @st.cache_data
 def carregar_dados():
-    shapefile_path = "Data/zoneamento/anexos_II_III.shp"
+    zip_path = os.path.join("data", "shp_zoneamento.zip")
+    csv_path = os.path.join("data", "parametros_louos.csv")
 
-    # Dados geográficos
+    if os.path.exists(zip_path):
+        shapefile_path = f"zip://{zip_path}"
+    else:
+        shapefile_path = os.path.join("data", "Zoneamento", "anexos_II_III.shp")
+
     gdf = gpd.read_file(shapefile_path)
-
-    # Parâmetros urbanísticos
-    df_louos = pd.read_csv("Data/parametros_louos.csv")
+    df_louos = pd.read_csv(csv_path)
 
     return gdf, df_louos
 
@@ -147,9 +130,7 @@ def gerar_pdf(
         spaceAfter=8,
     )
 
-    # --------------------------------------------------------
     # TÍTULO
-    # --------------------------------------------------------
     story.append(
         Paragraph(
             "Relatório de Viabilidade Construtiva e Estudo de VGV - Joinville/SC",
@@ -158,9 +139,7 @@ def gerar_pdf(
     )
     story.append(Spacer(1, 10))
 
-    # --------------------------------------------------------
     # LOCALIZAÇÃO
-    # --------------------------------------------------------
     story.append(
         Paragraph(
             "<b>1. Localização e Dimensões do Terreno</b>", heading_style
@@ -183,9 +162,7 @@ def gerar_pdf(
     story.append(t_loc)
     story.append(Spacer(1, 12))
 
-    # --------------------------------------------------------
     # PARÂMETROS URBANÍSTICOS
-    # --------------------------------------------------------
     story.append(
         Paragraph("<b>2. Parâmetros Urbanísticos (LOUOS)</b>", heading_style)
     )
@@ -209,9 +186,7 @@ def gerar_pdf(
     story.append(t_urban)
     story.append(Spacer(1, 12))
 
-    # --------------------------------------------------------
     # POTENCIAL E VGV
-    # --------------------------------------------------------
     story.append(
         Paragraph(
             "<b>3. Potencial Construtivo e Estimativa de VGV</b>", heading_style
@@ -247,7 +222,7 @@ def gerar_pdf(
 
 
 # ============================================================
-# 4. PAINEL DE MONETIZAÇÃO & BARRA LATERAL (CURTIDAS -> CRÉDITOS)
+# 4. PAINEL DE MONETIZAÇÃO & BARRA LATERAL
 # ============================================================
 
 
@@ -360,9 +335,7 @@ if st.session_state.consultado:
 
     col_mapa, col_relatorio = st.columns([1, 1])
 
-    # ----------------------------------------------------
     # MAPA FOLIUM
-    # ----------------------------------------------------
     with col_mapa:
         st.subheader("🗺️ Localização e Zoneamento")
 
@@ -406,9 +379,7 @@ if st.session_state.consultado:
         folium.LayerControl().add_to(m)
         st_folium(m, width=500, height=420, key="mapa_folium")
 
-    # ----------------------------------------------------
     # RELATÓRIO E ABAS
-    # ----------------------------------------------------
     with col_relatorio:
         st.subheader("📋 Relatório Construtivo & Financeiro")
 
@@ -445,7 +416,7 @@ if st.session_state.consultado:
                     "📄 Exportação",
                 ])
 
-                # --- ABA 1: INDICES URBANÍSTICOS ---
+                # ABA 1: INDICES URBANÍSTICOS
                 with aba1:
                     m1, m2 = st.columns(2)
                     m1.metric("C.A. Básico", info["ca_basico"])
@@ -461,7 +432,7 @@ if st.session_state.consultado:
                         f"📏 **Recuo Frontal Mínimo:** {info['recuo_frontal_m']} metros"
                     )
 
-                # --- ABA 2: ESTUDO DE MASSA ---
+                # ABA 2: ESTUDO DE MASSA
                 with aba2:
                     p1, p2, p3 = st.columns(3)
                     p1.metric("Projeção Solo", f"{area_projecao:.1f} m²")
@@ -473,14 +444,14 @@ if st.session_state.consultado:
                         f"💡 **Potencial Construtivo Adicional:** `{outorga_potencial_m2:.1f} m²`"
                     )
 
-                    with st.expander("🔎 Como este resultado foi calculated?"):
+                    with st.expander("🔎 Como este resultado foi calculado?"):
                         st.write(f"""
                         - **Projeção no Solo:** {area:.2f} m² (Área do lote) × {info['taxa_ocupacao']*100}% (T.O.) = **{area_projecao:.2f} m²**
                         - **Área Construtiva Básica:** {area:.2f} m² × {info['ca_basico']} (C.A. Básico) = **{area_const_basica:.2f} m²**
                         - **Área Construtiva Máxima:** {area:.2f} m² × {info['ca_maximo']} (C.A. Máximo) = **{area_const_maxima:.2f} m²**
                         """)
 
-                # --- ABA 3: SIMULAÇÃO DE VGV ---
+                # ABA 3: SIMULAÇÃO DE VGV
                 with aba3:
                     v1, v2 = st.columns(2)
                     v1.metric(
@@ -499,7 +470,7 @@ if st.session_state.consultado:
                     v3.metric("VGV Potencial Básico", f"R$ {vgv_basico:,.2f}")
                     v4.metric("VGV Potencial Máximo", f"R$ {vgv_maximo:,.2f}")
 
-                # --- ABA 4: EXPORTAÇÃO E MONETIZAÇÃO ---
+                # ABA 4: EXPORTAÇÃO E MONETIZAÇÃO
                 with aba4:
                     st.markdown("### 📥 Download do Laudo de Viabilidade")
                     st.write(
