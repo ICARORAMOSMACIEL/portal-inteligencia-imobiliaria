@@ -15,6 +15,47 @@ from shapely.geometry import Point
 from streamlit_folium import st_folium
 
 # ============================================================
+# 0. CONFIGURAÇÃO DA PÁGINA & INICIALIZAÇÃO DO SESSION STATE
+# ============================================================
+
+st.set_page_config(
+    page_title="Portal de Inteligência Imobiliária - Joinville",
+    page_icon="🏢",
+    layout="wide",
+)
+
+if "creditos_disponiveis" not in st.session_state:
+    st.session_state["creditos_disponiveis"] = 0
+
+if "curtidas" not in st.session_state:
+    st.session_state["curtidas"] = 0
+
+if "consultado" not in st.session_state:
+    st.session_state["consultado"] = False
+
+if "lat" not in st.session_state:
+    st.session_state["lat"] = -26.2745
+
+if "lng" not in st.session_state:
+    st.session_state["lng"] = -48.8512
+
+if "area_terreno" not in st.session_state:
+    st.session_state["area_terreno"] = 500.0
+
+if "valor_m2" not in st.session_state:
+    st.session_state["valor_m2"] = 7500.0
+
+if "eficiencia" not in st.session_state:
+    st.session_state["eficiencia"] = 75.0
+
+st.title("🏢 Portal de Inteligência Imobiliária - Joinville/SC")
+
+st.markdown(
+    "Plataforma de viabilidade construtiva (LOUOS/SIMGeo), "
+    "simulador de potencial e avaliação financeira de VGV."
+)
+
+# ============================================================
 # FUNÇÕES AUXILIARES DE FORMATAÇÃO (PADRÃO BRASILEIRO)
 # ============================================================
 
@@ -31,49 +72,7 @@ def formatar_moeda(valor):
 
 
 # ============================================================
-# 1. CONFIGURAÇÃO DA PÁGINA & SESSION STATE
-# ============================================================
-
-st.set_page_config(
-    page_title="Portal de Inteligência Imobiliária - Joinville",
-    page_icon="🏢",
-    layout="wide",
-)
-
-st.title("🏢 Portal de Inteligência Imobiliária - Joinville/SC")
-
-st.markdown(
-    "Plataforma de viabilidade construtiva (LOUOS/SIMGeo), "
-    "simulador de potencial e avaliação financeira de VGV."
-)
-
-if "creditos_disponiveis" not in st.session_state:
-    st.session_state["creditos_disponiveis"] = 0
-
-if "curtidas" not in st.session_state:
-    st.session_state["curtidas"] = 0
-
-if "consultado" not in st.session_state:
-    st.session_state.consultado = False
-
-if "lat" not in st.session_state:
-    st.session_state.lat = -26.2745
-
-if "lng" not in st.session_state:
-    st.session_state.lng = -48.8512
-
-if "area_terreno" not in st.session_state:
-    st.session_state.area_terreno = 500.0
-
-if "valor_m2" not in st.session_state:
-    st.session_state.valor_m2 = 7500.0
-
-if "eficiencia" not in st.session_state:
-    st.session_state.eficiencia = 75.0
-
-
-# ============================================================
-# 2. CARREGAR DADOS
+# 1. CARREGAR DADOS
 # ============================================================
 
 @st.cache_data
@@ -82,7 +81,7 @@ def carregar_dados():
     csv_path = os.path.join("data", "parametros_louos.csv")
 
     if os.path.exists(zip_path):
-        temp_dir = tempfile.mkdtemp()
+        temp_dir = tempfile.gettempdir()
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_ref.extractall(temp_dir)
 
@@ -96,25 +95,26 @@ def carregar_dados():
         if shp_file:
             gdf = gpd.read_file(shp_file)
         else:
-            raise FileNotFoundError("Nenhum ficheiro .shp foi encontrado dentro do zip_path.")
+            gdf = gpd.read_file(f"zip://{zip_path}")
     else:
         shapefile_path = os.path.join("data", "Zoneamento", "anexos_II_III.shp")
         gdf = gpd.read_file(shapefile_path)
 
     df_louos = pd.read_csv(csv_path)
 
-    # Garante CRS básico caso esteja ausente
     if gdf.crs is None:
         gdf = gdf.set_crs("EPSG:4326")
+    else:
+        gdf = gdf.to_crs("EPSG:4326")
 
     return gdf, df_louos
 
-
+# Chamada obrigatória para instanciar os dados no escopo global
 gdf_zoneamento, df_louos = carregar_dados()
 
 
 # ============================================================
-# 3. GERAR RELATÓRIO PDF (REPORTLAB)
+# 2. GERAR RELATÓRIO PDF (REPORTLAB)
 # ============================================================
 
 def gerar_pdf(
@@ -251,7 +251,7 @@ def gerar_pdf(
 
 
 # ============================================================
-# 4. PAINEL DE MONETIZAÇÃO & BARRA LATERAL
+# 3. PAINEL DE MONETIZAÇÃO & BARRA LATERAL
 # ============================================================
 
 def renderizar_painel_monetizacao():
@@ -292,9 +292,9 @@ if tipo_busca == "Por Endereço":
                 location = geolocator.geocode(busca_full)
 
                 if location:
-                    st.session_state.lat = location.latitude
-                    st.session_state.lng = location.longitude
-                    st.session_state.consultado = True
+                    st.session_state["lat"] = location.latitude
+                    st.session_state["lng"] = location.longitude
+                    st.session_state["consultado"] = True
                     st.sidebar.success(
                         f"📍 Encontrado: {location.latitude:.5f}, {location.longitude:.5f}"
                     )
@@ -306,55 +306,59 @@ if tipo_busca == "Por Endereço":
             st.sidebar.warning("Insira um endereço válido.")
 else:
     lat_input = st.sidebar.number_input(
-        "Latitude", value=st.session_state.lat, format="%.6f"
+        "Latitude", value=st.session_state["lat"], format="%.6f"
     )
     lng_input = st.sidebar.number_input(
-        "Longitude", value=st.session_state.lng, format="%.6f"
+        "Longitude", value=st.session_state["lng"], format="%.6f"
     )
 
     if st.sidebar.button("Consultar Coordenadas"):
-        st.session_state.lat = lat_input
-        st.session_state.lng = lng_input
-        st.session_state.consultado = True
+        st.session_state["lat"] = lat_input
+        st.session_state["lng"] = lng_input
+        st.session_state["consultado"] = True
 
 st.sidebar.markdown("---")
 st.sidebar.header("📐 Dimensões e Premissas")
 
-st.session_state.area_terreno = st.sidebar.number_input(
+# Uso das keys para vincular diretamente ao session_state sem falhas de atributo
+st.sidebar.number_input(
     "Área do Terreno (m²)",
-    value=st.session_state.area_terreno,
+    value=st.session_state["area_terreno"],
     min_value=1.0,
     step=50.0,
+    key="area_terreno",
 )
 
-st.session_state.eficiencia = st.sidebar.slider(
+st.sidebar.slider(
     "Eficiência Vendável (%)",
     min_value=50.0,
     max_value=90.0,
-    value=st.session_state.eficiencia,
+    value=st.session_state["eficiencia"],
     step=1.0,
+    key="eficiencia",
 )
 
-st.session_state.valor_m2 = st.sidebar.number_input(
+st.sidebar.number_input(
     "Preço Médio de Venda (R$/m²)",
-    value=st.session_state.valor_m2,
+    value=st.session_state["valor_m2"],
     min_value=0.0,
     step=250.0,
+    key="valor_m2",
 )
 
 renderizar_painel_monetizacao()
 
 
 # ============================================================
-# 5. PAINEL PRINCIPAL & PROCESSAMENTO SPATIAL (COM BUFFER)
+# 4. PAINEL PRINCIPAL & PROCESSAMENTO SPATIAL (COM BUFFER)
 # ============================================================
 
-if st.session_state.consultado:
+if st.session_state["consultado"]:
 
     # 1. Cria o ponto GPS original
-    ponto_original = Point(st.session_state.lng, st.session_state.lat)
+    ponto_original = Point(st.session_state["lng"], st.session_state["lat"])
 
-    # 2. Criar buffer de segurança (~20m) para alcançar lotes ao lado do asfalto
+    # 2. Criar buffer de segurança (~20m) para alcançar lotes adjacentes ao leito da rua
     ponto_com_buffer = ponto_original.buffer(0.0002)
 
     # 3. Converter para o mesmo CRS da camada de zoneamento
@@ -373,7 +377,7 @@ if st.session_state.consultado:
         st.subheader("🗺️ Localização e Zoneamento")
 
         m = folium.Map(
-            location=[st.session_state.lat, st.session_state.lng], zoom_start=16
+            location=[st.session_state["lat"], st.session_state["lng"]], zoom_start=16
         )
 
         if not resultado.empty:
@@ -403,7 +407,7 @@ if st.session_state.consultado:
                 )
 
         folium.Marker(
-            [st.session_state.lat, st.session_state.lng],
+            [st.session_state["lat"], st.session_state["lng"]],
             popup="Terreno Consultado",
             tooltip="Terreno consultado",
             icon=folium.Icon(color="red", icon="info-sign"),
@@ -422,9 +426,9 @@ if st.session_state.consultado:
 
             if not regra.empty:
                 info = regra.iloc[0]
-                area = st.session_state.area_terreno
-                valor_m2 = st.session_state.valor_m2
-                eficiencia = st.session_state.eficiencia
+                area = st.session_state["area_terreno"]
+                valor_m2 = st.session_state["valor_m2"]
+                eficiencia = st.session_state["eficiencia"]
 
                 # Cálculos de Potencial
                 area_projecao = area * info["taxa_ocupacao"]
@@ -477,7 +481,7 @@ if st.session_state.consultado:
                         f"💡 **Potencial Construtivo Adicional:** `{formatar_numero(outorga_potencial_m2, 1)} m²`"
                     )
 
-                    with st.expander("🔎 Como este resultado foi calculado?"):
+                    with st.expander("🔎 Como este resultado foi calculated?"):
                         st.write(f"""
                         - **Projeção no Solo:** {formatar_numero(area, 2)} m² × {int(info['taxa_ocupacao']*100)}% (T.O.) = **{formatar_numero(area_projecao, 2)} m²**
                         - **Área Construtiva Básica:** {formatar_numero(area, 2)} m² × {formatar_numero(info['ca_basico'], 2)} (C.A. Básico) = **{formatar_numero(area_const_basica, 2)} m²**
@@ -513,8 +517,8 @@ if st.session_state.consultado:
                     if st.session_state["creditos_disponiveis"] > 0:
                         pdf_bytes = gerar_pdf(
                             info,
-                            st.session_state.lat,
-                            st.session_state.lng,
+                            st.session_state["lat"],
+                            st.session_state["lng"],
                             area,
                             area_projecao,
                             area_const_basica,
