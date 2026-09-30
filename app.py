@@ -80,45 +80,81 @@ def carregar_dados():
     zip_path = os.path.join("data", "shp_zoneamento.zip")
     csv_path = os.path.join("data", "parametros_louos.csv")
 
-    if os.path.exists(zip_path):
-        temp_dir = tempfile.gettempdir()
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            zip_ref.extractall(temp_dir)
+    nome_shapefile = "anexos_II_III.shp"
 
-        shp_file = None
-        for root, dirs, files in os.walk(temp_dir):
-            for file in files:
-                if file.endswith(".shp"):
-                    shp_file = os.path.join(root, file)
+    # ========================================================
+    # CARREGAR SHAPEFILE DE ZONEAMENTO
+    # ========================================================
+
+    if os.path.exists(zip_path):
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                zip_ref.extractall(temp_dir)
+
+            shp_file = None
+
+            # Procura especificamente o shapefile correto
+            for root, dirs, files in os.walk(temp_dir):
+                for file in files:
+
+                    if file.lower() == nome_shapefile.lower():
+                        shp_file = os.path.join(root, file)
+                        break
+
+                if shp_file:
                     break
 
-        if shp_file:
+            if shp_file is None:
+                raise FileNotFoundError(
+                    f"O arquivo {nome_shapefile} não foi encontrado "
+                    "dentro de shp_zoneamento.zip."
+                )
+
             gdf = gpd.read_file(shp_file)
-        else:
-            gdf = gpd.read_file(f"zip://{zip_path}")
+
     else:
-        shapefile_path = os.path.join("data", "Zoneamento", "anexos_II_III.shp")
+
+        shapefile_path = os.path.join(
+            "data",
+            "Zoneamento",
+            nome_shapefile
+        )
+
+        if not os.path.exists(shapefile_path):
+            raise FileNotFoundError(
+                f"Arquivo de zoneamento não encontrado: "
+                f"{shapefile_path}"
+            )
+
         gdf = gpd.read_file(shapefile_path)
 
+    # ========================================================
+    # CARREGAR PARÂMETROS LOUOS
+    # ========================================================
+
     df_louos = pd.read_csv(csv_path)
+
+    # ========================================================
+    # VALIDAR CRS
+    # ========================================================
 
     if gdf.crs is None:
         raise ValueError(
             "O shapefile de zoneamento está sem CRS definido. "
-            "Verifique o arquivo .prj antes de continuar."
+            "Verifique o arquivo .prj."
         )
 
-    # Mantém a camada em WGS84 para exibição no Folium
+    # Converte para WGS84
     gdf = gdf.to_crs("EPSG:4326")
 
-    # Corrige eventuais geometrias inválidas
+    # Corrige geometrias inválidas
     gdf["geometry"] = gdf["geometry"].buffer(0)
 
     return gdf, df_louos
-
-# Chamada obrigatória para instanciar os dados no escopo global
+# Carrega os dados no escopo global
 gdf_zoneamento, df_louos = carregar_dados()
-
 
 # ============================================================
 # 2. GERAR RELATÓRIO PDF (REPORTLAB)
