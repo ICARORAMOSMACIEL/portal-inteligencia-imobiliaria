@@ -103,9 +103,16 @@ def carregar_dados():
     df_louos = pd.read_csv(csv_path)
 
     if gdf.crs is None:
-        gdf = gdf.set_crs("EPSG:4326")
-    else:
-        gdf = gdf.to_crs("EPSG:4326")
+        raise ValueError(
+            "O shapefile de zoneamento está sem CRS definido. "
+            "Verifique o arquivo .prj antes de continuar."
+        )
+
+    # Mantém a camada em WGS84 para exibição no Folium
+    gdf = gdf.to_crs("EPSG:4326")
+
+    # Corrige eventuais geometrias inválidas
+    gdf["geometry"] = gdf["geometry"].buffer(0)
 
     return gdf, df_louos
 
@@ -356,18 +363,31 @@ renderizar_painel_monetizacao()
 if st.session_state["consultado"]:
 
     # 1. Cria o ponto GPS original
-    ponto_original = Point(st.session_state["lng"], st.session_state["lat"])
+    ponto_gdf = gpd.GeoDataFrame(
+        geometry=[
+            Point(
+                st.session_state["lng"],
+                st.session_state["lat"]
+            )
+        ],
+        crs="EPSG:4326"
+    )
 
-    # 2. Criar buffer de segurança (~20m) para alcançar lotes adjacentes ao leito da rua
-    ponto_com_buffer = ponto_original.buffer(0.0002)
+    # 2. Usa CRS métrico adequado à região de Joinville
+    crs_metrico = "EPSG:31982"
 
-    # 3. Converter para o mesmo CRS da camada de zoneamento
-    ponto_gdf = gpd.GeoDataFrame([{"geometry": ponto_com_buffer}], crs="EPSG:4326")
-    ponto_gdf = ponto_gdf.to_crs(gdf_zoneamento.crs)
+    ponto_metrico = ponto_gdf.to_crs(crs_metrico)
+    zoneamento_metrico = gdf_zoneamento.to_crs(crs_metrico)
 
-    # 4. Cruzamento espacial usando o buffer
+    # 3. Buffer real de 20 metros
+    ponto_metrico["geometry"] = ponto_metrico.geometry.buffer(20)
+
+    # 4. Cruzamento espacial
     resultado = gpd.sjoin(
-        ponto_gdf, gdf_zoneamento, how="inner", predicate="intersects"
+        ponto_metrico,
+        zoneamento_metrico,
+        how="inner",
+        predicate="intersects"
     )
 
     col_mapa, col_relatorio = st.columns([1, 1])
