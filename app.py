@@ -15,6 +15,22 @@ from shapely.geometry import Point
 from streamlit_folium import st_folium
 
 # ============================================================
+# FUNÇÕES AUXILIARES DE FORMATAÇÃO (PADRÃO BRASILEIRO)
+# ============================================================
+
+def formatar_numero(valor, decimais=2):
+    if valor is None or pd.isna(valor):
+        return "-"
+    texto = f"{valor:,.{decimais}f}"
+    return texto.replace(",", "X").replace(".", ",").replace("X", ".")
+
+def formatar_moeda(valor):
+    if valor is None or pd.isna(valor):
+        return "R$ 0,00"
+    return f"R$ {formatar_numero(valor, 2)}"
+
+
+# ============================================================
 # 1. CONFIGURAÇÃO DA PÁGINA & SESSION STATE
 # ============================================================
 
@@ -31,7 +47,6 @@ st.markdown(
     "simulador de potencial e avaliação financeira de VGV."
 )
 
-# Inicialização de variáveis no session_state
 if "creditos_disponiveis" not in st.session_state:
     st.session_state["creditos_disponiveis"] = 0
 
@@ -58,9 +73,8 @@ if "eficiencia" not in st.session_state:
 
 
 # ============================================================
-# 2. CARREGAR DADOS (EXTRAÇÃO SEURA DE ZIP EM PASTA TEMPORÁRIA)
+# 2. CARREGAR DADOS
 # ============================================================
-
 
 @st.cache_data
 def carregar_dados():
@@ -68,12 +82,10 @@ def carregar_dados():
     csv_path = os.path.join("data", "parametros_louos.csv")
 
     if os.path.exists(zip_path):
-        # Descomprime o ficheiro ZIP numa pasta temporária para leitura direta do GeoPandas
         temp_dir = tempfile.mkdtemp()
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_ref.extractall(temp_dir)
 
-        # Procura o ficheiro .shp dentro dos ficheiros extraídos
         shp_file = None
         for root, dirs, files in os.walk(temp_dir):
             for file in files:
@@ -86,11 +98,14 @@ def carregar_dados():
         else:
             raise FileNotFoundError("Nenhum ficheiro .shp foi encontrado dentro do zip_path.")
     else:
-        # Fallback para caminho local descompactado
         shapefile_path = os.path.join("data", "Zoneamento", "anexos_II_III.shp")
         gdf = gpd.read_file(shapefile_path)
 
     df_louos = pd.read_csv(csv_path)
+
+    # Garante CRS básico caso esteja ausente
+    if gdf.crs is None:
+        gdf = gdf.set_crs("EPSG:4326")
 
     return gdf, df_louos
 
@@ -101,7 +116,6 @@ gdf_zoneamento, df_louos = carregar_dados()
 # ============================================================
 # 3. GERAR RELATÓRIO PDF (REPORTLAB)
 # ============================================================
-
 
 def gerar_pdf(
     info,
@@ -149,7 +163,6 @@ def gerar_pdf(
         spaceAfter=8,
     )
 
-    # TÍTULO
     story.append(
         Paragraph(
             "Relatório de Viabilidade Construtiva e Estudo de VGV - Joinville/SC",
@@ -158,7 +171,6 @@ def gerar_pdf(
     )
     story.append(Spacer(1, 10))
 
-    # LOCALIZAÇÃO
     story.append(
         Paragraph(
             "<b>1. Localização e Dimensões do Terreno</b>", heading_style
@@ -166,8 +178,8 @@ def gerar_pdf(
     )
 
     dados_loc = [
-        ["Latitude:", f"{lat:.6f}", "Longitude:", f"{lng:.6f}"],
-        ["Área Total do Lote:", f"{area:.2f} m²", "Município:", "Joinville / SC"],
+        ["Latitude:", formatar_numero(lat, 6), "Longitude:", formatar_numero(lng, 6)],
+        ["Área Total do Lote:", f"{formatar_numero(area, 2)} m²", "Município:", "Joinville / SC"],
     ]
 
     t_loc = Table(dados_loc, colWidths=[120, 130, 120, 130])
@@ -181,7 +193,6 @@ def gerar_pdf(
     story.append(t_loc)
     story.append(Spacer(1, 12))
 
-    # PARÂMETROS URBANÍSTICOS
     story.append(
         Paragraph("<b>2. Parâmetros Urbanísticos (LOUOS)</b>", heading_style)
     )
@@ -205,7 +216,6 @@ def gerar_pdf(
     story.append(t_urban)
     story.append(Spacer(1, 12))
 
-    # POTENCIAL E VGV
     story.append(
         Paragraph(
             "<b>3. Potencial Construtivo e Estimativa de VGV</b>", heading_style
@@ -213,16 +223,16 @@ def gerar_pdf(
     )
 
     dados_potencial = [
-        ["Projeção Máxima no Solo:", f"{area_projecao:.2f} m²"],
-        ["Área Construtiva Básica:", f"{area_basica:.2f} m²"],
-        ["Área Construtiva Máxima:", f"{area_maxima:.2f} m²"],
-        ["Potencial Construtivo Adicional:", f"{outorga_m2:.2f} m²"],
-        ["Eficiência Vendável Aplicada:", f"{eficiencia:.1f}%"],
-        ["Área Privativa Básica Estimada:", f"{area_priv_basica:.2f} m²"],
-        ["Área Privativa Máxima Estimada:", f"{area_priv_maxima:.2f} m²"],
-        ["Preço Médio de Venda Estimado:", f"R$ {valor_m2:,.2f} / m²"],
-        ["VGV Básico Estimado:", f"R$ {vgv_basico:,.2f}"],
-        ["VGV Máximo Estimado:", f"R$ {vgv_maximo:,.2f}"],
+        ["Projeção Máxima no Solo:", f"{formatar_numero(area_projecao, 2)} m²"],
+        ["Área Construtiva Básica:", f"{formatar_numero(area_basica, 2)} m²"],
+        ["Área Construtiva Máxima:", f"{formatar_numero(area_maxima, 2)} m²"],
+        ["Potencial Construtivo Adicional:", f"{formatar_numero(outorga_m2, 2)} m²"],
+        ["Eficiência Vendável Aplicada:", f"{formatar_numero(eficiencia, 1)}%"],
+        ["Área Privativa Básica Estimada:", f"{formatar_numero(area_priv_basica, 2)} m²"],
+        ["Área Privativa Máxima Estimada:", f"{formatar_numero(area_priv_maxima, 2)} m²"],
+        ["Preço Médio de Venda Estimado:", f"{formatar_moeda(valor_m2)} / m²"],
+        ["VGV Básico Estimado:", formatar_moeda(vgv_basico)],
+        ["VGV Máximo Estimado:", formatar_moeda(vgv_maximo)],
     ]
 
     t_pot = Table(dados_potencial, colWidths=[230, 270])
@@ -243,7 +253,6 @@ def gerar_pdf(
 # ============================================================
 # 4. PAINEL DE MONETIZAÇÃO & BARRA LATERAL
 # ============================================================
-
 
 def renderizar_painel_monetizacao():
     st.sidebar.markdown("---")
@@ -337,17 +346,22 @@ renderizar_painel_monetizacao()
 
 
 # ============================================================
-# 5. PAINEL PRINCIPAL & PROCESSAMENTO
+# 5. PAINEL PRINCIPAL & PROCESSAMENTO SPATIAL (COM BUFFER)
 # ============================================================
 
 if st.session_state.consultado:
 
-    # Ponto e projeção de coordenadas
-    ponto = Point(st.session_state.lng, st.session_state.lat)
-    ponto_gdf = gpd.GeoDataFrame([{"geometry": ponto}], crs="EPSG:4326")
+    # 1. Cria o ponto GPS original
+    ponto_original = Point(st.session_state.lng, st.session_state.lat)
+
+    # 2. Criar buffer de segurança (~20m) para alcançar lotes ao lado do asfalto
+    ponto_com_buffer = ponto_original.buffer(0.0002)
+
+    # 3. Converter para o mesmo CRS da camada de zoneamento
+    ponto_gdf = gpd.GeoDataFrame([{"geometry": ponto_com_buffer}], crs="EPSG:4326")
     ponto_gdf = ponto_gdf.to_crs(gdf_zoneamento.crs)
 
-    # Cruzamento espacial
+    # 4. Cruzamento espacial usando o buffer
     resultado = gpd.sjoin(
         ponto_gdf, gdf_zoneamento, how="inner", predicate="intersects"
     )
@@ -435,11 +449,11 @@ if st.session_state.consultado:
                     "📄 Exportação",
                 ])
 
-                # ABA 1: INDICES URBANÍSTICOS
+                # ABA 1: ÍNDICES URBANÍSTICOS
                 with aba1:
                     m1, m2 = st.columns(2)
-                    m1.metric("C.A. Básico", info["ca_basico"])
-                    m2.metric("C.A. Máximo", info["ca_maximo"])
+                    m1.metric("C.A. Básico", formatar_numero(info["ca_basico"], 2))
+                    m2.metric("C.A. Máximo", formatar_numero(info["ca_maximo"], 2))
 
                     m3, m4 = st.columns(2)
                     m3.metric(
@@ -448,26 +462,26 @@ if st.session_state.consultado:
                     m4.metric("Gabarito Máximo", f"{info['gabarito_max_pav']} pavs")
 
                     st.info(
-                        f"📏 **Recuo Frontal Mínimo:** {info['recuo_frontal_m']} metros"
+                        f"📏 **Recuo Frontal Mínimo:** {formatar_numero(info['recuo_frontal_m'], 1)} metros"
                     )
 
                 # ABA 2: ESTUDO DE MASSA
                 with aba2:
                     p1, p2, p3 = st.columns(3)
-                    p1.metric("Projeção Solo", f"{area_projecao:.1f} m²")
-                    p2.metric("Área Básica", f"{area_const_basica:.1f} m²")
-                    p3.metric("Área Máxima", f"{area_const_maxima:.1f} m²")
+                    p1.metric("Projeção Solo", f"{formatar_numero(area_projecao, 1)} m²")
+                    p2.metric("Área Básica", f"{formatar_numero(area_const_basica, 1)} m²")
+                    p3.metric("Área Máxima", f"{formatar_numero(area_const_maxima, 1)} m²")
 
                     st.markdown("---")
                     st.markdown(
-                        f"💡 **Potencial Construtivo Adicional:** `{outorga_potencial_m2:.1f} m²`"
+                        f"💡 **Potencial Construtivo Adicional:** `{formatar_numero(outorga_potencial_m2, 1)} m²`"
                     )
 
                     with st.expander("🔎 Como este resultado foi calculado?"):
                         st.write(f"""
-                        - **Projeção no Solo:** {area:.2f} m² (Área do lote) × {info['taxa_ocupacao']*100}% (T.O.) = **{area_projecao:.2f} m²**
-                        - **Área Construtiva Básica:** {area:.2f} m² × {info['ca_basico']} (C.A. Básico) = **{area_const_basica:.2f} m²**
-                        - **Área Construtiva Máxima:** {area:.2f} m² × {info['ca_maximo']} (C.A. Máximo) = **{area_const_maxima:.2f} m²**
+                        - **Projeção no Solo:** {formatar_numero(area, 2)} m² × {int(info['taxa_ocupacao']*100)}% (T.O.) = **{formatar_numero(area_projecao, 2)} m²**
+                        - **Área Construtiva Básica:** {formatar_numero(area, 2)} m² × {formatar_numero(info['ca_basico'], 2)} (C.A. Básico) = **{formatar_numero(area_const_basica, 2)} m²**
+                        - **Área Construtiva Máxima:** {formatar_numero(area, 2)} m² × {formatar_numero(info['ca_maximo'], 2)} (C.A. Máximo) = **{formatar_numero(area_const_maxima, 2)} m²**
                         """)
 
                 # ABA 3: SIMULAÇÃO DE VGV
@@ -475,19 +489,19 @@ if st.session_state.consultado:
                     v1, v2 = st.columns(2)
                     v1.metric(
                         "Área Privativa Básica",
-                        f"{area_privativa_basica:.1f} m²",
+                        f"{formatar_numero(area_privativa_basica, 1)} m²",
                         help="Calculada aplicando a taxa de eficiência sobre a área computável básica.",
                     )
                     v2.metric(
                         "Área Privativa Máxima",
-                        f"{area_privativa_maxima:.1f} m²",
+                        f"{formatar_numero(area_privativa_maxima, 1)} m²",
                         help="Calculada aplicando a taxa de eficiência sobre a área computável máxima.",
                     )
 
                     st.markdown("---")
                     v3, v4 = st.columns(2)
-                    v3.metric("VGV Potencial Básico", f"R$ {vgv_basico:,.2f}")
-                    v4.metric("VGV Potencial Máximo", f"R$ {vgv_maximo:,.2f}")
+                    v3.metric("VGV Potencial Básico", formatar_moeda(vgv_basico))
+                    v4.metric("VGV Potencial Máximo", formatar_moeda(vgv_maximo))
 
                 # ABA 4: EXPORTAÇÃO E MONETIZAÇÃO
                 with aba4:
@@ -536,6 +550,6 @@ if st.session_state.consultado:
                     f"Zona `{sigla}` encontrada no mapa, porém sem parâmetros cadastrados no arquivo `parametros_louos.csv`."
                 )
         else:
-            st.warning(
+            st.error(
                 "O ponto selecionado está fora dos limites de zoneamento cadastrados."
             )
