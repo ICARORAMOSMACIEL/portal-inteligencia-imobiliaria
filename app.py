@@ -14,6 +14,8 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from shapely.geometry import Point
 from streamlit_folium import st_folium
 
+APP_VERSION = "1.1.0"
+
 # ============================================================
 # 0. CONFIGURAÇÃO DA PÁGINA & INICIALIZAÇÃO DO SESSION STATE
 # ============================================================
@@ -391,6 +393,25 @@ st.sidebar.number_input(
 
 renderizar_painel_monetizacao()
 
+st.sidebar.markdown("---")
+st.sidebar.caption(f"🏷️ Versão: v{APP_VERSION}")
+st.sidebar.caption("Portal de Inteligência Imobiliária")
+
+with st.sidebar.expander("📌 Histórico de versões"):
+    st.markdown("""
+    **v1.1.0**
+    - Correção do carregamento da camada de zoneamento
+    - Ajuste do CRS geográfico
+    - Buffer espacial em metros
+    - Melhoria na identificação das zonas urbanas
+
+    **v1.0.0**
+    - Consulta por endereço e coordenadas
+    - Identificação de zoneamento
+    - Estudo de massa
+    - Simulação de VGV
+    - Exportação de relatório em PDF
+    """)
 
 # ============================================================
 # 4. PAINEL PRINCIPAL & PROCESSAMENTO SPATIAL (COM BUFFER)
